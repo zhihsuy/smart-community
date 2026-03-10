@@ -183,6 +183,7 @@
 import { ref, onMounted, computed } from 'vue'
 import AdminLayout from '@/components/AdminLayout.vue'
 import { ElMessage } from 'element-plus'
+import request from '@/utils/request'
 
 const notices = ref([])
 const total = ref(0)
@@ -259,22 +260,18 @@ const getStatusTag = (status) => {
 // 加载公告列表
 const loadNotices = async () => {
   try {
-    const params = new URLSearchParams()
-    if (searchForm.value.title) params.append('title', searchForm.value.title)
-    if (searchForm.value.type) params.append('type', searchForm.value.type)
-    if (searchForm.value.status) params.append('status', searchForm.value.status)
-    params.append('page', page.value)
-    params.append('pageSize', pageSize.value)
-    
-    const response = await fetch(`http://localhost:8081/api/v1/admin/notices?${params.toString()}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+    const response = await request.get('/v1/pc/notices', {
+      params: {
+        title: searchForm.value.title,
+        type: searchForm.value.type,
+        status: searchForm.value.status,
+        page: page.value,
+        pageSize: pageSize.value
       }
     })
-    const result = await response.json()
-    if (result.code === 0) {
-      notices.value = result.data.list
-      total.value = result.data.total
+    if (response.code === 0) {
+      notices.value = response.data.list
+      total.value = response.data.total
     }
   } catch (error) {
     console.error('加载公告列表失败:', error)
@@ -333,28 +330,26 @@ const saveNotice = async () => {
   try {
     await noticeFormRef.value.validate()
     
-    const url = dialogType.value === 'add' 
-      ? 'http://localhost:8081/api/v1/admin/notices' 
-      : `http://localhost:8081/api/v1/admin/notices/${noticeForm.value.id}`
+    // 获取当前用户信息作为作者
+    const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+    const noticeData = {
+      ...noticeForm.value,
+      author: userInfo.nickname || '管理员'
+    }
     
-    const method = dialogType.value === 'add' ? 'POST' : 'PUT'
+    let response
+    if (dialogType.value === 'add') {
+      response = await request.post('/v1/pc/notices', noticeData)
+    } else {
+      response = await request.put(`/v1/pc/notices/${noticeForm.value.id}`, noticeData)
+    }
     
-    const response = await fetch(url, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify(noticeForm.value)
-    })
-    
-    const result = await response.json()
-    if (result.code === 0) {
+    if (response.code === 0) {
       ElMessage.success(dialogType.value === 'add' ? '发布公告成功' : '编辑公告成功')
       dialogVisible.value = false
       loadNotices()
     } else {
-      ElMessage.error(result.msg || '操作失败')
+      ElMessage.error(response.msg || '操作失败')
     }
   } catch (error) {
     console.error('保存公告失败:', error)
@@ -366,19 +361,12 @@ const saveNotice = async () => {
 const deleteNotice = async (noticeId) => {
   try {
     if (confirm('确定要删除该公告吗？')) {
-      const response = await fetch(`http://localhost:8081/api/v1/admin/notices/${noticeId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      })
-      
-      const result = await response.json()
-      if (result.code === 0) {
+      const response = await request.delete(`/v1/pc/notices/${noticeId}`)
+      if (response.code === 0) {
         ElMessage.success('删除公告成功')
         loadNotices()
       } else {
-        ElMessage.error(result.msg || '删除失败')
+        ElMessage.error(response.msg || '删除失败')
       }
     }
   } catch (error) {
