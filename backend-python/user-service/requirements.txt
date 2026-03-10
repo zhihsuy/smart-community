@@ -1,0 +1,17 @@
+# Flask框架
+Flask==3.0.0
+
+# 跨域支持
+Flask-CORS==4.0.0
+
+# MySQL数据库连接
+PyMySQL==1.1.0
+
+# JWT认证
+PyJWT==2.8.0
+
+# 密码加密
+bcrypt==4.1.2
+
+# WSGI服务器（生产环境使用）
+gunicorn==21.2.0
