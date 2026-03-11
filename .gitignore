@@ -1,0 +1,54 @@
+# Python 相关（适配你的 ai、ml-training 模块）
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 前端相关（适配你的 front 模块）
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+.vscode/extensions/
+dist/
+build/
+
+# 后端/数据库相关（适配你的 backend、database 模块）
+*.log
+logs/
+*.pid
+*.seed
+*.pid.lock
+target/
+*.jar
+*.war
+
+# 系统/编辑器文件
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# 训练模型临时文件（适配 ml-training 模块）
+ml-training/temp/
+ml-training/*.tmp
+ml-training/*.cache
