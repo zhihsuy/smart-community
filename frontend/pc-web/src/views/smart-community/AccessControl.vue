@@ -1,6 +1,10 @@
 <template>
   <div class="access-control">
     <div class="page-header">
+      <el-button type="primary" @click="$router.back()">
+        <el-icon><ArrowLeft /></el-icon>
+        返回
+      </el-button>
       <h1>🚪 智能门禁</h1>
       <p class="subtitle">人脸识别、远程开门、出入记录查询</p>
     </div>
@@ -134,7 +138,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Unlock, List, User } from '@element-plus/icons-vue'
+import { Unlock, List, User, ArrowLeft } from '@element-plus/icons-vue'
 
 const devices = ref([])
 const myPermissions = ref([])
@@ -254,6 +258,9 @@ onMounted(() => {
 
 .page-header {
   margin-bottom: 30px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
 }
 
 .page-header h1 {

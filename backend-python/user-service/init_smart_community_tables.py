@@ -182,6 +182,7 @@ def create_notice_tables():
                 publish_time TIMESTAMP NULL COMMENT '发布时间',
                 expire_time TIMESTAMP NULL COMMENT '过期时间',
                 publisher_id INT NOT NULL COMMENT '发布人ID',
+                author VARCHAR(100) COMMENT '发布人姓名',
                 read_count INT DEFAULT 0 COMMENT '阅读次数',
                 status ENUM('draft', 'published', 'expired', 'withdrawn') DEFAULT 'draft' COMMENT '状态',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

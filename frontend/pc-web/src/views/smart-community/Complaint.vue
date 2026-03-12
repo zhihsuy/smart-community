@@ -1,6 +1,10 @@
 <template>
   <div class="complaint-page">
     <div class="page-header">
+      <el-button type="primary" @click="$router.back()">
+        <el-icon><ArrowLeft /></el-icon>
+        返回
+      </el-button>
       <h1>💬 投诉建议</h1>
       <p class="subtitle">在线投诉、问题反馈、处理进度查询、满意度评价</p>
     </div>
@@ -438,7 +442,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { 
-  Plus, Position, Refresh, List, QuestionFilled, Phone, Edit, ChatDotRound, Clock 
+  Plus, Position, Refresh, List, QuestionFilled, Phone, Edit, ChatDotRound, Clock, ArrowLeft 
 } from '@element-plus/icons-vue'
 
 const stats = ref({})
@@ -724,6 +728,9 @@ onMounted(() => {
 
 .page-header {
   margin-bottom: 30px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
 }
 
 .page-header h1 {

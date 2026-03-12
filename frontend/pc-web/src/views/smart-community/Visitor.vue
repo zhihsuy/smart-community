@@ -1,6 +1,10 @@
 <template>
   <div class="visitor-page">
     <div class="page-header">
+      <el-button type="primary" @click="$router.back()">
+        <el-icon><ArrowLeft /></el-icon>
+        返回
+      </el-button>
       <h1>👥 访客管理</h1>
       <p class="subtitle">访客预约、二维码生成、进出记录</p>
     </div>
@@ -206,7 +210,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { List, Position, DataAnalysis } from '@element-plus/icons-vue'
+import { List, Position, DataAnalysis, ArrowLeft } from '@element-plus/icons-vue'
 
 const visitorForm = ref({
   visitor_name: '',
@@ -386,6 +390,9 @@ onMounted(() => {
 
 .page-header {
   margin-bottom: 30px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
 }
 
 .page-header h1 {

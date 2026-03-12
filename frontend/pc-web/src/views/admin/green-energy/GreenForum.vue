@@ -18,7 +18,6 @@
           <div class="stat-value">{{ stats.totalComments || 0 }}</div>
           <div class="stat-label">评论总数</div>
         </el-card>
-      </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card" shadow="hover">

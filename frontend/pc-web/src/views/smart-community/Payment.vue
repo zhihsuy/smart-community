@@ -1,6 +1,10 @@
 <template>
   <div class="payment-page">
     <div class="page-header">
+      <el-button type="primary" @click="$router.back()">
+        <el-icon><ArrowLeft /></el-icon>
+        返回
+      </el-button>
       <h1>💰 费用缴纳</h1>
       <p class="subtitle">水费、电费、物业费、停车费</p>
     </div>
@@ -186,7 +190,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Top, List, Collection, Timer } from '@element-plus/icons-vue'
+import { Top, List, Collection, Timer, ArrowLeft } from '@element-plus/icons-vue'
 
 const unpaidBills = ref([])
 const paymentRecords = ref([])
@@ -360,6 +364,9 @@ onMounted(() => {
 
 .page-header {
   margin-bottom: 30px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
 }
 
 .page-header h1 {

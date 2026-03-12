@@ -1,6 +1,10 @@
 <template>
   <div class="repair-page">
     <div class="page-header">
+      <el-button type="primary" @click="$router.back()">
+        <el-icon><ArrowLeft /></el-icon>
+        返回
+      </el-button>
       <h1>🔧 物业报修</h1>
       <p class="subtitle">在线报修、进度查询、服务评价</p>
     </div>
@@ -55,7 +59,7 @@
           
           <el-form-item label="上传图片">
             <el-upload
-              action="/api/v1/pc/upload"
+              action="/api/v1/pc/activities/upload-image"
               list-type="picture-card"
               :on-success="handleUploadSuccess"
               :on-remove="handleRemove"
@@ -140,7 +144,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, ArrowLeft } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -168,12 +172,12 @@ const stats = ref({})
 
 const handleUploadSuccess = (response, file) => {
   if (response.code === 0) {
-    repairForm.value.images.push(response.data.url)
+    repairForm.value.images.push(response.data.imageUrl)
   }
 }
 
 const handleRemove = (file, fileList) => {
-  const index = repairForm.value.images.indexOf(file.response?.data?.url)
+  const index = repairForm.value.images.indexOf(file.response?.data?.imageUrl)
   if (index > -1) {
     repairForm.value.images.splice(index, 1)
   }
@@ -193,12 +197,16 @@ const submitRepair = async () => {
         'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
-        ...repairForm.value,
-        building_id: userInfo.building_id,
-        room_number: userInfo.room_number
+        title: repairForm.value.title,
+        type: repairForm.value.repair_type,
+        description: repairForm.value.description,
+        address: `${userInfo.building_id || ''} ${userInfo.room_number || ''}`,
+        images: repairForm.value.images,
+        priority: repairForm.value.urgency
       })
     })
     const result = await response.json()
+    console.log('提交报修响应:', result)
     if (result.code === 0) {
       ElMessage.success('报修提交成功')
       repairFormRef.value.resetFields()
@@ -220,8 +228,14 @@ const loadStats = async () => {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     const result = await response.json()
+    console.log('加载统计响应:', result)
     if (result.code === 0) {
-      stats.value = result.data || {}
+      stats.value = {
+        pending_count: result.data?.orders?.pending || 0,
+        processing_count: result.data?.orders?.processing || 0,
+        completed_count: result.data?.orders?.completed || 0,
+        avg_rating: '5.0' // 后端暂时没有提供评分数据
+      }
     }
   } catch (error) {
     console.error('加载统计失败:', error)
@@ -240,6 +254,9 @@ onMounted(() => {
 
 .page-header {
   margin-bottom: 30px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
 }
 
 .page-header h1 {

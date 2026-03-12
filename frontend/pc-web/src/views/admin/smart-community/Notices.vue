@@ -19,10 +19,10 @@
             </el-form-item>
             <el-form-item label="类型">
               <el-select v-model="searchForm.type" placeholder="选择公告类型">
-                <el-option label="通知" value="notice" />
-                <el-option label="公告" value="announcement" />
-                <el-option label="活动" value="activity" />
-                <el-option label="其他" value="other" />
+                <el-option label="社区公告" value="community" />
+                <el-option label="物业通知" value="property" />
+                <el-option label="紧急通知" value="emergency" />
+                <el-option label="活动通知" value="activity" />
               </el-select>
             </el-form-item>
             <el-form-item label="状态">
@@ -103,10 +103,10 @@
           </el-form-item>
           <el-form-item label="类型" prop="type">
             <el-select v-model="noticeForm.type" placeholder="选择公告类型">
-              <el-option label="通知" value="notice" />
-              <el-option label="公告" value="announcement" />
-              <el-option label="活动" value="activity" />
-              <el-option label="其他" value="other" />
+              <el-option label="社区公告" value="community" />
+              <el-option label="物业通知" value="property" />
+              <el-option label="紧急通知" value="emergency" />
+              <el-option label="活动通知" value="activity" />
             </el-select>
           </el-form-item>
           <el-form-item label="内容" prop="content">
@@ -218,10 +218,10 @@ const currentNotice = ref(null)
 // 获取类型文本
 const getTypeText = (type) => {
   const types = {
-    'notice': '通知',
-    'announcement': '公告',
-    'activity': '活动',
-    'other': '其他'
+    'community': '社区公告',
+    'property': '物业通知',
+    'emergency': '紧急通知',
+    'activity': '活动通知'
   }
   return types[type] || type
 }
@@ -229,10 +229,10 @@ const getTypeText = (type) => {
 // 获取类型标签样式
 const getTypeTag = (type) => {
   const tags = {
-    'notice': 'primary',
-    'announcement': 'success',
-    'activity': 'warning',
-    'other': 'info'
+    'community': 'primary',
+    'property': 'success',
+    'emergency': 'danger',
+    'activity': 'warning'
   }
   return tags[type] || 'default'
 }
@@ -269,9 +269,13 @@ const loadNotices = async () => {
         pageSize: pageSize.value
       }
     })
-    if (response.code === 0) {
-      notices.value = response.data.list
-      total.value = response.data.total
+    console.log('加载公告列表响应:', response)
+    if (response.data.code === 0) {
+      notices.value = response.data.data.list
+      total.value = response.data.data.total
+    } else {
+      console.error('加载公告列表失败:', response.data.msg)
+      ElMessage.error(response.data.msg || '加载公告列表失败')
     }
   } catch (error) {
     console.error('加载公告列表失败:', error)
@@ -301,7 +305,7 @@ const openAddDialog = () => {
   dialogType.value = 'add'
   noticeForm.value = {
     title: '',
-    type: 'notice',
+    type: 'community',
     content: '',
     publish_time: new Date(),
     expire_time: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
@@ -337,22 +341,41 @@ const saveNotice = async () => {
       author: userInfo.nickname || '管理员'
     }
     
+    console.log('=== 前端调试信息 ===')
+    console.log('操作类型:', dialogType.value === 'add' ? '新增' : '编辑')
+    console.log('用户信息:', userInfo)
+    console.log('表单数据:', noticeForm.value)
+    console.log('发送的数据:', noticeData)
+    console.log('Token:', localStorage.getItem('token'))
+    
     let response
     if (dialogType.value === 'add') {
+      console.log('请求URL:', '/v1/pc/notices')
+      console.log('请求方法:', 'POST')
       response = await request.post('/v1/pc/notices', noticeData)
     } else {
+      console.log('请求URL:', `/v1/pc/notices/${noticeForm.value.id}`)
+      console.log('请求方法:', 'PUT')
       response = await request.put(`/v1/pc/notices/${noticeForm.value.id}`, noticeData)
     }
     
-    if (response.code === 0) {
+    console.log('后端响应:', response)
+    console.log('后端响应数据:', response.data)
+    
+    if (response.data.code === 0) {
       ElMessage.success(dialogType.value === 'add' ? '发布公告成功' : '编辑公告成功')
       dialogVisible.value = false
       loadNotices()
     } else {
-      ElMessage.error(response.msg || '操作失败')
+      console.error('后端返回错误:', response.data.msg)
+      ElMessage.error(response.data.msg || '操作失败')
     }
   } catch (error) {
-    console.error('保存公告失败:', error)
+    console.error('=== 保存公告失败 ===')
+    console.error('错误对象:', error)
+    console.error('错误响应:', error.response)
+    console.error('错误状态:', error.response?.status)
+    console.error('错误数据:', error.response?.data)
     ElMessage.error('保存公告失败')
   }
 }
@@ -362,11 +385,13 @@ const deleteNotice = async (noticeId) => {
   try {
     if (confirm('确定要删除该公告吗？')) {
       const response = await request.delete(`/v1/pc/notices/${noticeId}`)
-      if (response.code === 0) {
+      console.log('删除公告响应:', response)
+      if (response.data.code === 0) {
         ElMessage.success('删除公告成功')
         loadNotices()
       } else {
-        ElMessage.error(response.msg || '删除失败')
+        console.error('删除公告失败:', response.data.msg)
+        ElMessage.error(response.data.msg || '删除失败')
       }
     }
   } catch (error) {

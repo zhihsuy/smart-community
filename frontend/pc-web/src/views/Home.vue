@@ -29,6 +29,38 @@
       </div>
     </section>
 
+    <!-- 公告通知区 -->
+    <section class="notices-section">
+      <div class="section-header">
+        <h2 class="section-title">
+          <el-icon><i-ep-message /></el-icon>
+          最新公告
+        </h2>
+        <el-button link @click="$router.push('/notices')">查看全部</el-button>
+      </div>
+      <div class="notices-grid">
+        <div 
+          v-for="notice in latestNotices" 
+          :key="notice.id" 
+          class="notice-card"
+          @click="goToNoticeDetail(notice.id)"
+        >
+          <div class="notice-header">
+            <h3 class="notice-title">{{ notice.title }}</h3>
+            <span class="notice-date">{{ formatDate(notice.publish_time) }}</span>
+          </div>
+          <p class="notice-content">{{ truncateContent(notice.content, 100) }}</p>
+          <div class="notice-footer">
+            <span class="notice-author">{{ notice.author }}</span>
+            <el-tag :type="getStatusTag(notice.status)" size="small">{{ getStatusText(notice.status) }}</el-tag>
+          </div>
+        </div>
+        <div v-if="latestNotices.length === 0" class="no-notices">
+          <el-empty description="暂无公告" />
+        </div>
+      </div>
+    </section>
+
     <!-- AI推荐区 -->
     <section class="recommend-section">
       <div class="section-header">
@@ -300,6 +332,9 @@ const banners = ref([
 // 推荐数据
 const recommendations = ref([])
 
+// 最新公告
+const latestNotices = ref([])
+
 // 垃圾分类
 const showGarbageModal = ref(false)
 const garbageResult = ref(null)
@@ -334,6 +369,43 @@ const fetchRecommendations = async () => {
   }
 }
 
+const fetchLatestNotices = async () => {
+  try {
+    const response = await axios.get('/api/v1/pc/notices', {
+      params: {
+        page: 1,
+        pageSize: 3,
+        status: 'published'
+      }
+    })
+    
+    if (response.data.code === 0) {
+      latestNotices.value = response.data.data.list
+    }
+  } catch (error) {
+    console.error('获取最新公告失败:', error)
+    // 使用默认数据
+    latestNotices.value = [
+      {
+        id: 1,
+        title: '社区停水通知',
+        content: '因管道维修，本周末将暂停供水，请各位业主提前做好储水准备。具体停水时间：周六上午9:00至下午18:00。给您带来不便，敬请谅解。',
+        author: '物业管理员',
+        publish_time: new Date().toISOString(),
+        status: 'published'
+      },
+      {
+        id: 2,
+        title: '小区活动通知',
+        content: '本周末将在社区中心举办亲子活动，欢迎各位业主带着孩子参加。活动内容包括手工制作、游戏互动等，还有小礼品赠送。',
+        author: '活动组',
+        publish_time: new Date(Date.now() - 86400000).toISOString(),
+        status: 'published'
+      }
+    ]
+  }
+}
+
 const refreshRecommendations = () => {
   fetchRecommendations()
 }
@@ -344,6 +416,45 @@ const goToDetail = (item) => {
   } else {
     router.push(`/activities/detail/${item.item_id}`)
   }
+}
+
+const goToNoticeDetail = (noticeId) => {
+  router.push(`/notices/detail/${noticeId}`)
+}
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+}
+
+const truncateContent = (content, length) => {
+  if (!content) return ''
+  // 移除HTML标签
+  const plainText = content.replace(/<[^>]*>/g, '')
+  return plainText.length > length ? plainText.substring(0, length) + '...' : plainText
+}
+
+const getStatusText = (status) => {
+  const statuses = {
+    'published': '已发布',
+    'draft': '草稿',
+    'expired': '已过期'
+  }
+  return statuses[status] || status
+}
+
+const getStatusTag = (status) => {
+  const tags = {
+    'published': 'success',
+    'draft': 'info',
+    'expired': 'danger'
+  }
+  return tags[status] || 'default'
 }
 
 const handleGarbageImageChange = async (file) => {
@@ -386,6 +497,7 @@ const format = (percentage) => `${percentage.toFixed(1)}%`
 
 onMounted(() => {
   fetchRecommendations()
+  fetchLatestNotices()
   
   // 自动轮播
   setInterval(() => {
@@ -732,6 +844,87 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
+/* 公告通知区域 */
+.notices-section {
+  margin-bottom: 40px;
+}
+
+.notices-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.notice-card {
+  background: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.notice-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.notice-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.notice-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333;
+  margin: 0;
+  flex: 1;
+  margin-right: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.notice-date {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
+}
+
+.notice-content {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.notice-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.notice-author {
+  font-size: 12px;
+  color: #999;
+}
+
+.no-notices {
+  grid-column: 1 / -1;
+  padding: 40px 0;
+  text-align: center;
+}
+
 /* 响应式设计 */
 @media (max-width: 1024px) {
   .recommend-grid {
@@ -740,6 +933,10 @@ onMounted(() => {
   
   .services-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .notices-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
   
   .stats-grid {
@@ -753,6 +950,10 @@ onMounted(() => {
   }
   
   .services-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .notices-grid {
     grid-template-columns: 1fr;
   }
   

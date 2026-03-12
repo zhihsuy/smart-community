@@ -1,6 +1,10 @@
 <template>
   <div class="utility-page">
     <div class="page-header">
+      <el-button type="primary" @click="$router.back()">
+        <el-icon><ArrowLeft /></el-icon>
+        返回
+      </el-button>
       <h1>💡 智能水电</h1>
       <p class="subtitle">智能电表、智能水表、用量监控、费用管理</p>
     </div>
@@ -19,8 +23,8 @@
           <div v-for="meter in meters" :key="meter.id" class="meter-item">
             <div class="meter-header">
               <span class="meter-name">
-                <el-icon v-if="meter.meter_type === 'electric'" style="color: #E6A23C;"><Light /></el-icon>
-                <el-icon v-else style="color: #409EFF;"><Water /></el-icon>
+                <el-icon v-if="meter.meter_type === 'electric'" style="color: #E6A23C;"><Setting /></el-icon>
+                <el-icon v-else style="color: #409EFF;"><House /></el-icon>
                 {{ meter.meter_type === 'electric' ? '电表' : '水表' }} - {{ meter.meter_no }}
               </span>
               <el-tag :type="meter.status === 'active' ? 'success' : 'danger'" size="small">
@@ -59,7 +63,7 @@
         <div class="usage-overview">
           <div class="usage-item electric">
             <div class="usage-icon">
-              <el-icon :size="32"><Light /></el-icon>
+              <el-icon :size="32"><Setting /></el-icon>
             </div>
             <div class="usage-info">
               <div class="usage-value">{{ overview.electric_usage || 0 }}</div>
@@ -70,7 +74,7 @@
           </div>
           <div class="usage-item water">
             <div class="usage-icon">
-              <el-icon :size="32"><Water /></el-icon>
+              <el-icon :size="32"><House /></el-icon>
             </div>
             <div class="usage-info">
               <div class="usage-value">{{ overview.water_usage || 0 }}</div>
@@ -81,7 +85,7 @@
           </div>
           <div class="usage-item total">
             <div class="usage-icon">
-              <el-icon :size="32"><Coin /></el-icon>
+              <el-icon :size="32"><Star /></el-icon>
             </div>
             <div class="usage-info">
               <div class="usage-value">¥{{ overview.total_cost || 0 }}</div>
@@ -261,7 +265,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Light, Water, Coin, DataAnalysis, CreditCard, Refresh, Clock } from '@element-plus/icons-vue'
+import { Setting, House, Star, Notification, Refresh, DataAnalysis, CreditCard, Clock, ArrowLeft } from '@element-plus/icons-vue'
 
 const meters = ref([])
 const overview = ref({})
@@ -280,15 +284,36 @@ const historyBills = ref([])
 const maxElectric = computed(() => Math.max(...trendData.value.electric.map(d => d.value), 1))
 const maxWater = computed(() => Math.max(...trendData.value.water.map(d => d.value), 1))
 
+// 获取当前用户信息
+const getCurrentUser = () => {
+  try {
+    const userStr = localStorage.getItem('userInfo')
+    if (userStr) {
+      return JSON.parse(userStr)
+    }
+    return null
+  } catch (error) {
+    console.error('获取用户信息失败:', error)
+    return null
+  }
+}
+
 const loadMeters = async () => {
   try {
-    const userId = localStorage.getItem('userId')
-    const response = await fetch(`/api/v1/pc/utility/meters?user_id=${userId}`, {
+    const user = getCurrentUser()
+    if (!user || !user.id) {
+      ElMessage.error('用户未登录或登录信息失效')
+      return
+    }
+    
+    const response = await fetch(`/api/v1/pc/utility/meters?user_id=${user.id}`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     })
     const result = await response.json()
     if (result.code === 0) {
       meters.value = result.data || []
+    } else {
+      ElMessage.error(result.msg || '加载表具失败')
     }
   } catch (error) {
     console.error('加载表具失败:', error)
@@ -298,68 +323,88 @@ const loadMeters = async () => {
 
 const loadOverview = async () => {
   try {
-    const userId = localStorage.getItem('userId')
-    const response = await fetch(`/api/v1/pc/utility/my-usage?user_id=${userId}`, {
+    const user = getCurrentUser()
+    if (!user || !user.id) {
+      ElMessage.error('用户未登录或登录信息失效')
+      return
+    }
+    
+    const response = await fetch(`/api/v1/pc/utility/usage?user_id=${user.id}`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     })
     const result = await response.json()
     if (result.code === 0) {
-      const data = result.data || []
-      let electricUsage = 0, waterUsage = 0, electricCost = 0, waterCost = 0
-      data.forEach(meter => {
-        if (meter.meter_type === 'electric') {
-          electricUsage += meter.current_reading || 0
-          electricCost += (meter.current_reading || 0) * 0.6
-        } else {
-          waterUsage += meter.current_reading || 0
-          waterCost += (meter.current_reading || 0) * 3.5
+      const data = result.data
+      if (data) {
+        overview.value = {
+          electric_usage: data.total_electric?.toFixed(1) || 0,
+          water_usage: data.total_water?.toFixed(1) || 0,
+          electric_cost: (data.total_electric * 0.6 || 0).toFixed(2),
+          water_cost: (data.total_water * 3.5 || 0).toFixed(2),
+          total_cost: ((data.total_electric * 0.6 || 0) + (data.total_water * 3.5 || 0)).toFixed(2),
+          change: Math.floor(Math.random() * 20 - 10)
         }
-      })
-      overview.value = {
-        electric_usage: electricUsage.toFixed(1),
-        water_usage: waterUsage.toFixed(1),
-        electric_cost: electricCost.toFixed(2),
-        water_cost: waterCost.toFixed(2),
-        total_cost: (electricCost + waterCost).toFixed(2),
-        change: Math.floor(Math.random() * 20 - 10)
       }
+    } else {
+      ElMessage.error(result.msg || '加载概览失败')
     }
   } catch (error) {
     console.error('加载概览失败:', error)
+    ElMessage.error('加载用量概览失败')
   }
 }
 
 const loadAlerts = async () => {
   try {
-    const userId = localStorage.getItem('userId')
-    const response = await fetch(`/api/v1/pc/utility/alerts?user_id=${userId}`, {
+    const user = getCurrentUser()
+    if (!user || !user.id) {
+      ElMessage.error('用户未登录或登录信息失效')
+      return
+    }
+    
+    const response = await fetch(`/api/v1/pc/utility/alerts?user_id=${user.id}`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     })
     const result = await response.json()
     if (result.code === 0) {
       alerts.value = result.data || []
+    } else {
+      ElMessage.error(result.msg || '加载预警失败')
     }
   } catch (error) {
     console.error('加载预警失败:', error)
+    ElMessage.error('加载预警信息失败')
   }
 }
 
 const loadTrend = async () => {
   try {
-    const userId = localStorage.getItem('userId')
-    const response = await fetch(`/api/v1/pc/utility/statistics?user_id=${userId}&period=${trendPeriod.value}`, {
+    const user = getCurrentUser()
+    if (!user || !user.id) {
+      ElMessage.error('用户未登录或登录信息失效')
+      return
+    }
+    
+    const response = await fetch(`/api/v1/pc/utility/usage?user_id=${user.id}&start_date=${new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}&end_date=${new Date().toISOString().split('T')[0]}`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     })
     const result = await response.json()
     if (result.code === 0) {
-      const data = result.data || []
-      trendData.value = {
-        electric: data.map(d => ({ date: d.date, value: d.total_usage || Math.floor(Math.random() * 50 + 10) })),
-        water: data.map(d => ({ date: d.date, value: d.total_usage || Math.floor(Math.random() * 10 + 2) }))
+      const data = result.data
+      if (data && data.electric_trend && data.water_trend) {
+        trendData.value = {
+          electric: data.electric_trend,
+          water: data.water_trend
+        }
       }
+    } else {
+      ElMessage.error(result.msg || '加载趋势失败')
     }
   } catch (error) {
     console.error('加载趋势失败:', error)
+    ElMessage.error('加载用量趋势失败')
+    
+    // 使用模拟数据
     const days = trendPeriod.value === '7d' ? 7 : trendPeriod.value === '30d' ? 30 : 90
     const mockData = []
     for (let i = days - 1; i >= 0; i--) {
@@ -377,17 +422,25 @@ const loadTrend = async () => {
 const loadUsageRecords = async () => {
   loadingRecords.value = true
   try {
-    const userId = localStorage.getItem('userId')
-    const response = await fetch(`/api/v1/pc/utility/usage?user_id=${userId}&page=${recordsPage.value}&pageSize=${recordsPageSize.value}`, {
+    const user = getCurrentUser()
+    if (!user || !user.id) {
+      ElMessage.error('用户未登录或登录信息失效')
+      return
+    }
+    
+    const response = await fetch(`/api/v1/pc/utility/usage?user_id=${user.id}&page=${recordsPage.value}&pageSize=${recordsPageSize.value}`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     })
     const result = await response.json()
     if (result.code === 0) {
       usageRecords.value = result.data?.list || []
       recordsTotal.value = result.data?.total || 0
+    } else {
+      ElMessage.error(result.msg || '加载记录失败')
     }
   } catch (error) {
     console.error('加载记录失败:', error)
+    ElMessage.error('加载用量记录失败')
   } finally {
     loadingRecords.value = false
   }
@@ -444,6 +497,9 @@ onMounted(() => {
 
 .page-header {
   margin-bottom: 30px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
 }
 
 .page-header h1 {

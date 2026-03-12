@@ -44,49 +44,51 @@
           </el-form>
         </div>
         
-        <el-table :data="alerts" style="width: 100%">
-          <el-table-column prop="id" label="预警ID" width="80" />
-          <el-table-column prop="alert_type" label="预警类型" width="120">
-            <template #default="scope">
-              <el-tag :type="getAlertTypeTag(scope.row.alert_type)">
-                {{ getAlertTypeText(scope.row.alert_type) }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="meter_code" label="表具编号" width="150" />
-          <el-table-column prop="meter_type" label="表具类型" width="100">
-            <template #default="scope">
-              <el-tag :type="getMeterTypeTag(scope.row.meter_type)">
-                {{ getMeterTypeText(scope.row.meter_type) }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="building_name" label="所属楼栋" />
-          <el-table-column prop="unit" label="单元" width="80" />
-          <el-table-column prop="room_number" label="房间号" width="100" />
-          <el-table-column prop="alert_message" label="预警信息" />
-          <el-table-column prop="status" label="状态" width="100">
-            <template #default="scope">
-              <el-tag :type="getStatusTag(scope.row.status)">
-                {{ getStatusText(scope.row.status) }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="created_at" label="创建时间" width="180" />
-          <el-table-column prop="processed_at" label="处理时间" width="180" />
-          <el-table-column label="操作" width="150" fixed="right">
-            <template #default="scope">
-              <el-button size="small" @click="viewAlert(scope.row)">
-                <el-icon><i-ep-view /></el-icon>
-                查看
-              </el-button>
-              <el-button size="small" @click="processAlert(scope.row)" v-if="scope.row.status === 'pending'">
-                <el-icon><i-ep-setting /></el-icon>
-                处理
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <div class="table-container">
+          <el-table :data="alerts" style="width: 100%" :default-sort="{prop: 'created_at', order: 'descending'}">
+            <el-table-column prop="id" label="ID" width="50" />
+            <el-table-column prop="alert_type" label="预警类型" width="80">
+              <template #default="scope">
+                <el-tag :type="getAlertTypeTag(scope.row.alert_type)" size="small">
+                  {{ getAlertTypeText(scope.row.alert_type) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="meter_code" label="表具编号" width="90" />
+            <el-table-column prop="meter_type" label="类型" width="60">
+              <template #default="scope">
+                <el-tag :type="getMeterTypeTag(scope.row.meter_type)" size="small">
+                  {{ getMeterTypeText(scope.row.meter_type) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="building_name" label="楼栋" width="100" />
+            <el-table-column prop="unit" label="单元" width="50" />
+            <el-table-column prop="room_number" label="房间" width="60" />
+            <el-table-column prop="alert_message" label="预警信息" min-width="90" />
+            <el-table-column prop="status" label="状态" width="60">
+              <template #default="scope">
+                <el-tag :type="getStatusTag(scope.row.status)" size="small">
+                  {{ getStatusText(scope.row.status) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="created_at" label="创建时间" width="110" />
+            <el-table-column prop="processed_at" label="处理时间" width="110" />
+            <el-table-column label="操作" width="90">
+              <template #default="scope">
+                <el-button size="small" @click="viewAlert(scope.row)">
+                  <el-icon><i-ep-view /></el-icon>
+                  查看
+                </el-button>
+                <el-button size="small" @click="processAlert(scope.row)" v-if="scope.row.status === 'pending'">
+                  <el-icon><i-ep-setting /></el-icon>
+                  处理
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
         
         <div class="pagination" v-if="total > 0">
           <el-pagination
@@ -411,12 +413,16 @@ onMounted(() => {
 <style scoped>
 .utility-alerts {
   padding: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .search-filter {
@@ -424,6 +430,13 @@ onMounted(() => {
   padding: 20px;
   border-radius: 8px;
   margin-bottom: 20px;
+  overflow-x: auto;
+}
+
+.table-container {
+  overflow-x: auto;
+  margin-bottom: 20px;
+  width: 100%;
 }
 
 .pagination {
@@ -490,5 +503,83 @@ onMounted(() => {
 
 .mt-4 {
   margin-top: 20px;
+}
+
+/* 响应式样式 */
+@media (max-width: 1200px) {
+  .el-table {
+    font-size: 13px;
+  }
+  
+  .el-table-column {
+    white-space: nowrap;
+  }
+  
+  .el-button {
+    padding: 0 8px;
+    font-size: 12px;
+  }
+  
+  .el-button .el-icon {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 992px) {
+  .search-filter {
+    padding: 15px;
+  }
+  
+  .el-form-item {
+    margin-right: 10px;
+  }
+  
+  .el-input {
+    width: 120px;
+  }
+  
+  .el-select {
+    width: 120px;
+  }
+  
+  .statistics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .stat-item {
+    padding: 15px;
+  }
+  
+  .stat-value {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .el-form {
+    flex-wrap: wrap;
+  }
+  
+  .el-form-item {
+    margin-right: 15px;
+    margin-bottom: 10px;
+  }
+  
+  .statistics-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .el-table {
+    font-size: 12px;
+  }
+  
+  .el-table-column {
+    min-width: 60px;
+  }
 }
 </style>

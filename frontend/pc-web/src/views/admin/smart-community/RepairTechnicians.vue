@@ -225,18 +225,17 @@ const getStatusTag = (status) => {
 const loadTechnicians = async () => {
   try {
     const params = new URLSearchParams()
-    if (searchForm.value.name) params.append('name', searchForm.value.name)
-    if (searchForm.value.specialty) params.append('specialty', searchForm.value.specialty)
     if (searchForm.value.status) params.append('status', searchForm.value.status)
     params.append('page', page.value)
     params.append('pageSize', pageSize.value)
     
-    const response = await fetch(`/api/v1/admin/repair/technicians?${params.toString()}`, {
+    const response = await fetch(`/api/v1/pc/repair/technicians?${params.toString()}`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     })
     const result = await response.json()
+    console.log('加载维修人员列表响应:', result)
     if (result.code === 0) {
       technicians.value = result.data.list
       total.value = result.data.total
@@ -293,8 +292,8 @@ const saveTechnician = async () => {
     await technicianFormRef.value.validate()
     
     const url = dialogType.value === 'add' 
-      ? '/api/v1/admin/repair/technicians' 
-      : `/api/v1/admin/repair/technicians/${technicianForm.value.id}`
+      ? '/api/v1/pc/repair/technicians' 
+      : `/api/v1/pc/repair/technicians/${technicianForm.value.id}`
     
     const method = dialogType.value === 'add' ? 'POST' : 'PUT'
     
@@ -308,6 +307,7 @@ const saveTechnician = async () => {
     })
     
     const result = await response.json()
+    console.log('保存维修人员响应:', result)
     if (result.code === 0) {
       ElMessage.success(dialogType.value === 'add' ? '新增维修人员成功' : '编辑维修人员成功')
       dialogVisible.value = false
@@ -325,7 +325,7 @@ const saveTechnician = async () => {
 const deleteTechnician = async (technicianId) => {
   try {
     if (confirm('确定要删除该维修人员吗？')) {
-      const response = await fetch(`/api/v1/admin/repair/technicians/${technicianId}`, {
+      const response = await fetch(`/api/v1/pc/repair/technicians/${technicianId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -333,6 +333,7 @@ const deleteTechnician = async (technicianId) => {
       })
       
       const result = await response.json()
+      console.log('删除维修人员响应:', result)
       if (result.code === 0) {
         ElMessage.success('删除维修人员成功')
         loadTechnicians()

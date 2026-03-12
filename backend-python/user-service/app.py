@@ -1,5 +1,5 @@
 # app.py - Flask应用主入口
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import sys
 import os
@@ -24,6 +24,7 @@ from routes.visitor import visitor_bp
 from routes.complaint import complaint_bp
 from routes.monitoring import monitoring_bp
 from routes.activity import activity_bp
+from routes.stats import stats_bp
 
 def create_app():
     """创建Flask应用"""
@@ -59,6 +60,17 @@ def create_app():
     app.register_blueprint(complaint_bp)
     app.register_blueprint(monitoring_bp)
     app.register_blueprint(activity_bp)
+    app.register_blueprint(stats_bp)
+    
+    # 添加全局请求日志
+    @app.before_request
+    def log_request_info():
+        logger.info(f"=== 收到请求 ===")
+        logger.info(f"请求方法: {request.method}")
+        logger.info(f"请求路径: {request.path}")
+        logger.info(f"请求头: {dict(request.headers)}")
+        if request.method in ['POST', 'PUT']:
+            logger.info(f"请求体: {request.get_json(silent=True) or request.form.to_dict()}")
     
     # 错误处理
     @app.errorhandler(404)

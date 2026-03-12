@@ -14,7 +14,7 @@ notice_bp = Blueprint('notice', __name__, url_prefix='/api/v1/pc/notices')
 def get_notices():
     """获取公告列表"""
     try:
-        title = request.args.get('title')
+        keyword = request.args.get('keyword')
         type = request.args.get('type')
         status = request.args.get('status')
         page = int(request.args.get('page', 1))
@@ -23,9 +23,10 @@ def get_notices():
         conditions = []
         params = []
         
-        if title:
-            conditions.append("title LIKE %s")
-            params.append(f"%{title}%")
+        if keyword:
+            conditions.append("(title LIKE %s OR content LIKE %s)")
+            params.append(f"%{keyword}%")
+            params.append(f"%{keyword}%")
         if type:
             conditions.append("type = %s")
             params.append(type)
@@ -66,6 +67,32 @@ def create_notice():
     try:
         data = request.get_json()
         
+        logger.info('=== 后端调试信息 ===')
+        logger.info(f'接收到的原始数据: {data}')
+        logger.info(f'请求头: {dict(request.headers)}')
+        logger.info(f'用户ID: {request.user_id}')
+        
+        # 转换日期格式
+        def parse_datetime(date_str):
+            if not date_str:
+                return None
+            if isinstance(date_str, str):
+                # 处理 ISO 格式日期字符串 (2026-03-11T13:04:32.000Z)
+                try:
+                    return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                except:
+                    try:
+                        return datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S.%fZ')
+                    except:
+                        return datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
+            return date_str
+        
+        publish_time = parse_datetime(data.get('publish_time')) or datetime.now()
+        expire_time = parse_datetime(data.get('expire_time'))
+        
+        logger.info(f'解析后的发布时间: {publish_time}')
+        logger.info(f'解析后的过期时间: {expire_time}')
+        
         from models.notice import Notice
         notice = Notice.create(
             title=data.get('title'),
@@ -73,10 +100,13 @@ def create_notice():
             content=data.get('content'),
             author=data.get('author'),
             author_id=request.user_id,
-            publish_time=datetime.now(),
-            expire_time=data.get('expire_time'),
+            is_pinned=data.get('is_pinned', False),
+            publish_time=publish_time,
+            expire_time=expire_time,
             status=data.get('status', 'published')
         )
+        
+        logger.info(f'创建的公告对象: {notice.to_dict() if notice else None}')
         
         if notice:
             return jsonify({
@@ -93,6 +123,8 @@ def create_notice():
         
     except Exception as e:
         logger.error(f"创建公告失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
         return jsonify({'code': 500, 'msg': f'创建失败: {str(e)}', 'data': None})
 
 
@@ -141,12 +173,30 @@ def update_notice(notice_id):
             })
         
         data = request.get_json()
+        
+        # 转换日期格式
+        def parse_datetime(date_str):
+            if not date_str:
+                return None
+            if isinstance(date_str, str):
+                try:
+                    return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                except:
+                    try:
+                        return datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S.%fZ')
+                    except:
+                        return datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
+            return date_str
+        
+        expire_time = parse_datetime(data.get('expire_time'))
+        
         success = notice.update(
             title=data.get('title'),
             type=data.get('type'),
             content=data.get('content'),
             author=data.get('author'),
-            expire_time=data.get('expire_time'),
+            is_pinned=data.get('is_pinned'),
+            expire_time=expire_time,
             status=data.get('status')
         )
         

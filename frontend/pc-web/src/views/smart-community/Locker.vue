@@ -1,6 +1,10 @@
 <template>
   <div class="locker-page">
     <div class="page-header">
+      <el-button type="primary" @click="$router.back()">
+        <el-icon><ArrowLeft /></el-icon>
+        返回
+      </el-button>
       <h1>📦 快递柜</h1>
       <p class="subtitle">包裹管理、智能取件、寄件服务、异常处理</p>
     </div>
@@ -154,7 +158,7 @@
             取件记录
           </el-button>
           <el-button type="info" size="large" @click="showMapDialog = true">
-            <el-icon><Map /></el-icon>
+            <el-icon><MapLocation /></el-icon>
             柜点地图
           </el-button>
         </div>
@@ -374,8 +378,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { 
-  Refresh, Unlock, Warning, Clock, Location, Promotion, Box, List, Map, 
-  ArrowRight, Key, MapLocation 
+  Refresh, Unlock, Warning, Clock, Location, Promotion, Box, List, MapLocation, 
+  ArrowRight, Key, ArrowLeft 
 } from '@element-plus/icons-vue'
 
 const packages = ref([])
@@ -656,6 +660,9 @@ onMounted(() => {
 
 .page-header {
   margin-bottom: 30px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
 }
 
 .page-header h1 {

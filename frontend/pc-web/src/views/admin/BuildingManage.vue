@@ -26,46 +26,48 @@
       </div>
 
       <div class="building-table">
-        <el-table :data="buildings" style="width: 100%">
-          <el-table-column prop="id" label="楼栋ID" width="80" />
-          <el-table-column prop="name" label="楼栋名称" width="150" />
-          <el-table-column prop="unit_count" label="单元数" width="100" />
-          <el-table-column prop="household_count" label="户数" width="100" />
-          <el-table-column prop="user_count" label="实际住户数" width="100" />
-          <el-table-column prop="address" label="详细地址" min-width="200" />
-          <el-table-column prop="status" label="状态" width="150">
-            <template #default="scope">
-              <el-switch
-                v-model="scope.row.status"
-                active-value="active"
-                inactive-value="inactive"
-                @change="toggleBuildingStatus(scope.row)"
-                active-text="启用"
-                inactive-text="禁用"
-              />
-            </template>
-          </el-table-column>
-          <el-table-column prop="created_at" label="创建时间" width="180" />
-          <el-table-column label="操作" width="180" fixed="right">
-            <template #default="scope">
-              <el-button
-                size="small"
-                type="primary"
-                @click="editBuilding(scope.row)"
-                style="margin-right: 5px"
-              >
-                编辑
-              </el-button>
-              <el-button
-                size="small"
-                type="danger"
-                @click="deleteBuilding(scope.row.id)"
-              >
-                删除
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+        <div class="table-container">
+          <el-table :data="buildings" style="width: 100%">
+            <el-table-column prop="id" label="楼栋ID" width="80" />
+            <el-table-column prop="name" label="楼栋名称" width="120" />
+            <el-table-column prop="unit_count" label="单元数" width="80" />
+            <el-table-column prop="household_count" label="户数" width="80" />
+            <el-table-column prop="user_count" label="实际住户数" width="100" />
+            <el-table-column prop="address" label="详细地址" min-width="150" />
+            <el-table-column prop="status" label="状态" width="120">
+              <template #default="scope">
+                <el-switch
+                  v-model="scope.row.status"
+                  active-value="active"
+                  inactive-value="inactive"
+                  @change="toggleBuildingStatus(scope.row)"
+                  active-text="启用"
+                  inactive-text="禁用"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column prop="created_at" label="创建时间" width="160" />
+            <el-table-column label="操作" width="160">
+              <template #default="scope">
+                <el-button
+                  size="small"
+                  type="primary"
+                  @click="editBuilding(scope.row)"
+                  style="margin-right: 5px"
+                >
+                  编辑
+                </el-button>
+                <el-button
+                  size="small"
+                  type="danger"
+                  @click="deleteBuilding(scope.row.id)"
+                >
+                  删除
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
 
         <div class="pagination" style="margin-top: 20px">
           <el-pagination
@@ -330,6 +332,29 @@ onMounted(() => {
   border-radius: 8px;
   padding: 20px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.table-container {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.table-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 .pagination {

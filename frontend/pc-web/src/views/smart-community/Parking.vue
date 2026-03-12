@@ -1,6 +1,10 @@
 <template>
   <div class="parking-page">
     <div class="page-header">
+      <el-button type="primary" @click="$router.back()">
+        <el-icon><ArrowLeft /></el-icon>
+        返回
+      </el-button>
       <h1>🚗 智能停车</h1>
       <p class="subtitle">车位管理、车辆管理、停车记录、在线缴费</p>
     </div>
@@ -123,7 +127,7 @@
         </template>
         <div class="quick-actions">
           <el-button type="primary" size="large" @click="findParkingSpace">
-            <el-icon><Map /></el-icon>
+            <el-icon><MapLocation /></el-icon>
             找车位
           </el-button>
           <el-button type="success" size="large" @click="$router.push('/payment')">
@@ -325,7 +329,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Map, CreditCard, List, Clock, Calendar, Wallet, Warning, Location, Refresh } from '@element-plus/icons-vue'
+import { Plus, MapLocation, CreditCard, List, Clock, Calendar, Wallet, Warning, Location, Refresh, ArrowLeft } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -617,6 +621,9 @@ onMounted(() => {
 
 .page-header {
   margin-bottom: 30px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
 }
 
 .page-header h1 {

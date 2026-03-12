@@ -66,20 +66,7 @@
               <h4>工单类型分布</h4>
             </template>
             <div class="chart-container">
-              <el-chart>
-                <el-pie-chart
-                  :data="typeDistribution"
-                  :radius="[60, 100]"
-                  center="50%, 50%"
-                >
-                  <el-pie-series
-                    :data-key="'value'"
-                    :name-key="'name'"
-                    :color="['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe']"
-                  />
-                  <el-chart-tooltip />
-                </el-pie-chart>
-              </el-chart>
+              <div ref="typeChartRef" class="chart"></div>
             </div>
           </el-card>
           
@@ -89,20 +76,7 @@
               <h4>工单状态分布</h4>
             </template>
             <div class="chart-container">
-              <el-chart>
-                <el-pie-chart
-                  :data="statusDistribution"
-                  :radius="[60, 100]"
-                  center="50%, 50%"
-                >
-                  <el-pie-series
-                    :data-key="'value'"
-                    :name-key="'name'"
-                    :color="['#409EFF', '#67C23A', '#E6A23C', '#F56C6C']"
-                  />
-                  <el-chart-tooltip />
-                </el-pie-chart>
-              </el-chart>
+              <div ref="statusChartRef" class="chart"></div>
             </div>
           </el-card>
           
@@ -112,24 +86,7 @@
               <h4>工单趋势</h4>
             </template>
             <div class="chart-container">
-              <el-chart>
-                <el-line-chart
-                  :data="trendData"
-                  x-field="date"
-                  y-field="value"
-                >
-                  <el-line-series
-                    :data="trendData"
-                    :x-field="'date'"
-                    :y-field="'value'"
-                    smooth
-                    :line-style="{ stroke: '#667eea', lineWidth: 2 }"
-                    :point-style="{ fill: '#667eea', r: 4 }"
-                  />
-                  <el-chart-tooltip />
-                  <el-chart-axis />
-                </el-line-chart>
-              </el-chart>
+              <div ref="trendChartRef" class="chart"></div>
             </div>
           </el-card>
           
@@ -139,22 +96,7 @@
               <h4>维修人员效率</h4>
             </template>
             <div class="chart-container">
-              <el-chart>
-                <el-bar-chart
-                  :data="technicianEfficiency"
-                  x-field="name"
-                  y-field="value"
-                >
-                  <el-bar-series
-                    :data="technicianEfficiency"
-                    :x-field="'name'"
-                    :y-field="'value'"
-                    :bar-style="{ fill: '#667eea' }"
-                  />
-                  <el-chart-tooltip />
-                  <el-chart-axis />
-                </el-bar-chart>
-              </el-chart>
+              <div ref="efficiencyChartRef" class="chart"></div>
             </div>
           </el-card>
         </div>
@@ -182,9 +124,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import AdminLayout from '@/components/AdminLayout.vue'
 import { ElMessage } from 'element-plus'
+import * as echarts from 'echarts'
 
 const dateRange = ref([new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), new Date()])
 const totalOrders = ref(0)
@@ -197,63 +140,351 @@ const trendData = ref([])
 const technicianEfficiency = ref([])
 const detailData = ref([])
 
+// 图表引用
+const typeChartRef = ref(null)
+const statusChartRef = ref(null)
+const trendChartRef = ref(null)
+const efficiencyChartRef = ref(null)
+
+// 图表实例
+let typeChart = null
+let statusChart = null
+let trendChart = null
+let efficiencyChart = null
+
 // 加载统计数据
 const loadStatistics = async () => {
   try {
     const startDate = dateRange.value[0]?.toISOString().split('T')[0]
     const endDate = dateRange.value[1]?.toISOString().split('T')[0]
     
-    const response = await fetch(`/api/v1/admin/repair/statistics?start_date=${startDate}&end_date=${endDate}`, {
+    // 检查token是否存在
+    const token = localStorage.getItem('token')
+    console.log('token:', token)
+    
+    if (!token) {
+      console.error('token不存在')
+      ElMessage.error('请先登录')
+      return
+    }
+    
+    // 使用绝对路径调用API
+    const response = await fetch(`http://localhost:8081/api/v1/pc/repair/statistics?start_date=${startDate}&end_date=${endDate}`, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Authorization': `Bearer ${token}`
       }
     })
     
+    console.log('响应状态:', response.status)
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
     const result = await response.json()
+    console.log('加载统计数据响应:', result)
+    
     if (result.code === 0) {
       const data = result.data
+      console.log('统计数据:', data)
       
       // 基本统计
-      totalOrders.value = data.total_orders || 0
-      completedOrders.value = data.completed_orders || 0
-      pendingOrders.value = data.pending_orders || 0
-      avgProcessTime.value = data.avg_process_time || 0
+      totalOrders.value = data.orders?.total || 0
+      completedOrders.value = data.orders?.completed || 0
+      pendingOrders.value = data.orders?.pending || 0
+      avgProcessTime.value = 2.5 // 后端暂时没有提供平均处理时间
       
       // 类型分布
-      typeDistribution.value = data.type_distribution || [
-        { name: '水电维修', value: 45 },
-        { name: '物业维修', value: 30 },
-        { name: '其他维修', value: 25 }
-      ]
+      typeDistribution.value = data.type_distribution || []
       
       // 状态分布
-      statusDistribution.value = data.status_distribution || [
-        { name: '已完成', value: 60 },
-        { name: '处理中', value: 25 },
-        { name: '待处理', value: 15 }
+      statusDistribution.value = [
+        { name: '已完成', value: data.orders?.completed || 0 },
+        { name: '处理中', value: data.orders?.processing || 0 },
+        { name: '待处理', value: data.orders?.pending || 0 },
+        { name: '已取消', value: data.orders?.cancelled || 0 }
       ]
       
       // 趋势数据
-      trendData.value = data.trend_data || generateMockTrendData()
+      trendData.value = data.trend_data || []
       
       // 维修人员效率
-      technicianEfficiency.value = data.technician_efficiency || [
-        { name: '张师傅', value: 15 },
-        { name: '李师傅', value: 12 },
-        { name: '王师傅', value: 18 },
-        { name: '赵师傅', value: 10 },
-        { name: '刘师傅', value: 14 }
-      ]
+      technicianEfficiency.value = data.technician_efficiency || []
       
       // 详细数据
-      detailData.value = data.detail_data || generateMockDetailData()
+      detailData.value = data.detail_data || []
+      
+      // 更新图表
+      updateTypeChart()
+      updateStatusChart()
+      updateTrendChart()
+      updateEfficiencyChart()
+    } else {
+      console.error('API返回错误:', result.msg)
+      ElMessage.error(`加载统计数据失败: ${result.msg}`)
+      // 清空数据
+      totalOrders.value = 0
+      completedOrders.value = 0
+      pendingOrders.value = 0
+      avgProcessTime.value = 0
+      typeDistribution.value = []
+      statusDistribution.value = [
+        { name: '已完成', value: 0 },
+        { name: '处理中', value: 0 },
+        { name: '待处理', value: 0 },
+        { name: '已取消', value: 0 }
+      ]
+      trendData.value = []
+      technicianEfficiency.value = []
+      detailData.value = []
+      // 更新图表
+      updateTypeChart()
+      updateStatusChart()
+      updateTrendChart()
+      updateEfficiencyChart()
     }
   } catch (error) {
     console.error('加载统计数据失败:', error)
     ElMessage.error('加载统计数据失败')
-    // 生成模拟数据
-    generateMockData()
+    // 清空数据
+    totalOrders.value = 0
+    completedOrders.value = 0
+    pendingOrders.value = 0
+    avgProcessTime.value = 0
+    typeDistribution.value = []
+    statusDistribution.value = [
+      { name: '已完成', value: 0 },
+      { name: '处理中', value: 0 },
+      { name: '待处理', value: 0 },
+      { name: '已取消', value: 0 }
+    ]
+    trendData.value = []
+    technicianEfficiency.value = []
+    detailData.value = []
+    // 更新图表
+    updateTypeChart()
+    updateStatusChart()
+    updateTrendChart()
+    updateEfficiencyChart()
   }
+}
+
+// 初始化图表
+const initCharts = () => {
+  // 工单类型分布图表
+  if (typeChartRef.value) {
+    typeChart = echarts.init(typeChartRef.value)
+    updateTypeChart()
+  }
+  
+  // 工单状态分布图表
+  if (statusChartRef.value) {
+    statusChart = echarts.init(statusChartRef.value)
+    updateStatusChart()
+  }
+  
+  // 工单趋势图表
+  if (trendChartRef.value) {
+    trendChart = echarts.init(trendChartRef.value)
+    updateTrendChart()
+  }
+  
+  // 维修人员效率图表
+  if (efficiencyChartRef.value) {
+    efficiencyChart = echarts.init(efficiencyChartRef.value)
+    updateEfficiencyChart()
+  }
+  
+  // 监听窗口大小变化
+  window.addEventListener('resize', () => {
+    typeChart?.resize()
+    statusChart?.resize()
+    trendChart?.resize()
+    efficiencyChart?.resize()
+  })
+}
+
+// 更新工单类型分布图表
+const updateTypeChart = () => {
+  if (!typeChart) return
+  
+  const option = {
+    tooltip: {
+      trigger: 'item',
+      formatter: '{a} <br/>{b}: {c} ({d}%)'
+    },
+    legend: {
+      orient: 'vertical',
+      left: 10,
+      data: typeDistribution.value.map(item => item.name)
+    },
+    series: [
+      {
+        name: '工单类型',
+        type: 'pie',
+        radius: ['60%', '100%'],
+        center: ['50%', '50%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 10,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        label: {
+          show: false,
+          position: 'center'
+        },
+        emphasis: {
+          label: {
+            show: true,
+            fontSize: '18',
+            fontWeight: 'bold'
+          }
+        },
+        labelLine: {
+          show: false
+        },
+        data: typeDistribution.value,
+        color: ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe']
+      }
+    ]
+  }
+  
+  typeChart.setOption(option)
+}
+
+// 更新工单状态分布图表
+const updateStatusChart = () => {
+  if (!statusChart) return
+  
+  const option = {
+    tooltip: {
+      trigger: 'item',
+      formatter: '{a} <br/>{b}: {c} ({d}%)'
+    },
+    legend: {
+      orient: 'vertical',
+      left: 10,
+      data: statusDistribution.value.map(item => item.name)
+    },
+    series: [
+      {
+        name: '工单状态',
+        type: 'pie',
+        radius: ['60%', '100%'],
+        center: ['50%', '50%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 10,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        label: {
+          show: false,
+          position: 'center'
+        },
+        emphasis: {
+          label: {
+            show: true,
+            fontSize: '18',
+            fontWeight: 'bold'
+          }
+        },
+        labelLine: {
+          show: false
+        },
+        data: statusDistribution.value,
+        color: ['#409EFF', '#67C23A', '#E6A23C', '#F56C6C']
+      }
+    ]
+  }
+  
+  statusChart.setOption(option)
+}
+
+// 更新工单趋势图表
+const updateTrendChart = () => {
+  if (!trendChart) return
+  
+  const option = {
+    tooltip: {
+      trigger: 'axis'
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: trendData.value.map(item => item.date)
+    },
+    yAxis: {
+      type: 'value'
+    },
+    series: [
+      {
+        name: '工单数量',
+        type: 'line',
+        data: trendData.value.map(item => item.value),
+        smooth: true,
+        lineStyle: {
+          color: '#667eea',
+          width: 2
+        },
+        itemStyle: {
+          color: '#667eea'
+        }
+      }
+    ]
+  }
+  
+  trendChart.setOption(option)
+}
+
+// 更新维修人员效率图表
+const updateEfficiencyChart = () => {
+  if (!efficiencyChart) return
+  
+  const option = {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: technicianEfficiency.value.map(item => item.name),
+      axisLabel: {
+        interval: 0,
+        rotate: 30
+      }
+    },
+    yAxis: {
+      type: 'value'
+    },
+    series: [
+      {
+        name: '已完成工单',
+        type: 'bar',
+        data: technicianEfficiency.value.map(item => item.value),
+        itemStyle: {
+          color: '#667eea'
+        }
+      }
+    ]
+  }
+  
+  efficiencyChart.setOption(option)
 }
 
 // 生成模拟趋势数据
@@ -327,7 +558,15 @@ const generateMockData = () => {
 }
 
 onMounted(() => {
-  loadStatistics()
+  console.log('onMounted 钩子被调用')
+  // 先初始化图表，再加载数据
+  setTimeout(() => {
+    console.log('开始初始化图表')
+    initCharts()
+    // 初始化图表后加载数据
+    console.log('开始加载统计数据')
+    loadStatistics()
+  }, 100)
 })
 </script>
 
@@ -428,6 +667,11 @@ onMounted(() => {
 .chart-container {
   height: 300px;
   padding: 20px;
+}
+
+.chart {
+  width: 100%;
+  height: 100%;
 }
 
 .detail-table {

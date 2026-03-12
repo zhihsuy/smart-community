@@ -62,19 +62,16 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="处理人员" width="150">
+          <template #default="scope">
+            {{ scope.row.handler_name || '待分配' }}
+          </template>
+        </el-table-column>
         <el-table-column prop="created_at" label="提交时间" width="180" />
-        <el-table-column label="操作" width="150">
+        <el-table-column label="操作" width="100">
           <template #default="scope">
             <el-button size="small" type="primary" @click="viewOrder(scope.row)">
               查看
-            </el-button>
-            <el-button 
-              size="small" 
-              type="success" 
-              @click="handleEvaluation(scope.row)"
-              v-if="scope.row.status === 'completed' && !scope.row.evaluation"
-            >
-              评价
             </el-button>
           </template>
         </el-table-column>
@@ -134,37 +131,7 @@
       </div>
     </el-dialog>
 
-    <!-- 评价对话框 -->
-    <el-dialog
-      v-model="evaluationVisible"
-      title="服务评价"
-      width="500px"
-    >
-      <div v-if="currentOrder" class="evaluation-form">
-        <el-form :model="evaluationForm" label-width="80px">
-          <el-form-item label="服务评分">
-            <el-rate v-model="evaluationForm.rating" :max="5" show-score />
-          </el-form-item>
-          <el-form-item label="评价内容">
-            <el-input 
-              v-model="evaluationForm.content" 
-              type="textarea" 
-              :rows="4"
-              placeholder="请输入您的评价..."
-            />
-          </el-form-item>
-          <el-form-item label="是否推荐">
-            <el-switch v-model="evaluationForm.recommend" />
-          </el-form-item>
-        </el-form>
-      </div>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="evaluationVisible = false">取消</el-button>
-          <el-button type="primary" @click="submitEvaluation">提交评价</el-button>
-        </span>
-      </template>
-    </el-dialog>
+
   </div>
 </template>
 
@@ -188,13 +155,7 @@ const tabCounts = ref({
   closed: 0
 })
 const orderDetailVisible = ref(false)
-const evaluationVisible = ref(false)
 const currentOrder = ref(null)
-const evaluationForm = ref({
-  rating: 5,
-  content: '',
-  recommend: true
-})
 
 // 加载工单
 const loadOrders = async () => {
@@ -206,10 +167,11 @@ const loadOrders = async () => {
       params.append('status', activeTab.value)
     }
 
-    const response = await fetch(`/api/v1/pc/repair/my-orders?${params.toString()}`, {
+    const response = await fetch(`/api/v1/pc/repair/orders?${params.toString()}`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     })
     const result = await response.json()
+    console.log('加载工单响应:', result)
     if (result.code === 0) {
       orders.value = result.data?.list || []
       pagination.value.total = result.data?.total || 0
@@ -227,8 +189,15 @@ const loadStatistics = async () => {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     })
     const result = await response.json()
+    console.log('加载统计响应:', result)
     if (result.code === 0) {
-      tabCounts.value = result.data || {}
+      tabCounts.value = {
+        all: result.data?.orders?.total || 0,
+        pending: result.data?.orders?.pending || 0,
+        processing: result.data?.orders?.processing || 0,
+        completed: result.data?.orders?.completed || 0,
+        closed: result.data?.orders?.cancelled || 0
+      }
     }
   } catch (error) {
     console.error('加载统计失败:', error)
@@ -254,45 +223,7 @@ const viewOrder = (order) => {
   orderDetailVisible.value = true
 }
 
-const handleEvaluation = (order) => {
-  currentOrder.value = order
-  evaluationForm.value = {
-    rating: 5,
-    content: '',
-    recommend: true
-  }
-  evaluationVisible.value = true
-}
 
-const submitEvaluation = async () => {
-  if (!currentOrder.value) return
-  
-  try {
-    const response = await fetch(`/api/v1/pc/repair/orders/${currentOrder.value.id}/evaluation`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify({
-        rating: evaluationForm.value.rating,
-        content: evaluationForm.value.content,
-        recommend: evaluationForm.value.recommend
-      })
-    })
-    const result = await response.json()
-    if (result.code === 0) {
-      ElMessage.success('评价提交成功')
-      evaluationVisible.value = false
-      loadOrders()
-    } else {
-      ElMessage.error(result.msg || '评价失败')
-    }
-  } catch (error) {
-    console.error('提交评价失败:', error)
-    ElMessage.error('评价失败')
-  }
-}
 
 const getRepairTypeText = (type) => {
   const map = {
@@ -375,6 +306,9 @@ onMounted(() => {
 
 .page-header {
   margin-bottom: 30px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
 }
 
 .page-header h1 {

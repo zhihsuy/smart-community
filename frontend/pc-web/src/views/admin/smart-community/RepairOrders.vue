@@ -344,14 +344,15 @@ const loadUsers = async () => {
 // 加载维修人员列表
 const loadTechnicians = async () => {
   try {
-    const response = await fetch('http://localhost:8081/api/v1/admin/repair/technicians', {
+    const response = await fetch('/api/v1/pc/repair/technicians', {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     })
     const result = await response.json()
+    console.log('加载维修人员列表响应:', result)
     if (result.code === 0) {
-      technicians.value = result.data
+      technicians.value = result.data.list
     }
   } catch (error) {
     console.error('加载维修人员列表失败:', error)
@@ -370,12 +371,13 @@ const loadOrders = async () => {
     params.append('page', page.value)
     params.append('pageSize', pageSize.value)
     
-    const response = await fetch(`http://localhost:8081/api/v1/admin/repair/orders?${params.toString()}`, {
+    const response = await fetch(`/api/v1/pc/repair/orders?${params.toString()}`, {
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     })
     const result = await response.json()
+    console.log('加载工单列表响应:', result)
     if (result.code === 0) {
       orders.value = result.data.list
       total.value = result.data.total
@@ -429,8 +431,8 @@ const saveAssignment = async () => {
   try {
     await assignFormRef.value.validate()
     
-    const response = await fetch(`http://localhost:8081/api/v1/admin/repair/orders/${currentOrder.value.id}/assign`, {
-      method: 'PUT',
+    const response = await fetch(`/api/v1/pc/repair/orders/${currentOrder.value.id}/assign`, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -439,6 +441,7 @@ const saveAssignment = async () => {
     })
     
     const result = await response.json()
+    console.log('指派维修人员响应:', result)
     if (result.code === 0) {
       ElMessage.success('指派成功')
       assignDialogVisible.value = false
@@ -457,14 +460,15 @@ const saveAssignment = async () => {
 const cancelOrder = async (orderId) => {
   try {
     if (confirm('确定要取消该工单吗？')) {
-      const response = await fetch(`http://localhost:8081/api/v1/admin/repair/orders/${orderId}/cancel`, {
-        method: 'PUT',
+      const response = await fetch(`/api/v1/pc/repair/orders/${orderId}/cancel`, {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       })
       
       const result = await response.json()
+      console.log('取消工单响应:', result)
       if (result.code === 0) {
         ElMessage.success('工单已取消')
         orderDialogVisible.value = false

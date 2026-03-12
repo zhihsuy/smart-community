@@ -127,7 +127,7 @@
 
         <div class="calculator-footer">
           <el-button type="primary" @click="calculateCarbonFootprint">
-            <el-icon><Calculator /></el-icon>
+            <el-icon><DataAnalysis /></el-icon>
             计算碳足迹
           </el-button>
         </div>
@@ -166,7 +166,7 @@
 
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { Calculator } from '@element-plus/icons-vue'
+import { DataAnalysis } from '@element-plus/icons-vue'
 import Chart from 'chart.js/auto'
 
 const activeTab = ref('transport')

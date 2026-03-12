@@ -43,7 +43,7 @@
       <el-col :span="6">
         <el-card class="stat-card temp" shadow="hover">
           <div class="stat-icon">
-            <el-icon :size="32"><Thermometer /></el-icon>
+            <el-icon :size="32"><Orange /></el-icon>
           </div>
           <div class="stat-info">
             <div class="stat-value">{{ temperature.value || '--' }}°C</div>
@@ -178,7 +178,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Sunny, Mic, Coffee, Thermometer } from '@element-plus/icons-vue'
+import { Sunny, Mic, Coffee, Orange } from '@element-plus/icons-vue'
 import AdminLayout from '@/components/AdminLayout.vue'
 
 const monitorType = ref('air')

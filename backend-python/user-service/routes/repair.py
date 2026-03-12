@@ -401,15 +401,182 @@ def get_repair_statistics():
     """获取维修统计数据"""
     try:
         from models.repair import RepairOrder
-        
-        total_orders = RepairOrder.find_all()
-        pending_orders = RepairOrder.find_all(conditions=["status = %s"], params=['pending'])
-        processing_orders = RepairOrder.find_all(conditions=["status = %s"], params=['processing'])
-        completed_orders = RepairOrder.find_all(conditions=["status = %s"], params=['completed'])
-        cancelled_orders = RepairOrder.find_all(conditions=["status = %s"], params=['cancelled'])
-        
         from models.repair import Technician
-        total_technicians = Technician.find_all(conditions=["status = %s"], params=['active'])
+        from config.database import execute_sql
+        from flask import request
+        
+        # 获取日期范围参数
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        # 构建日期条件
+        date_conditions = []
+        date_params = []
+        if start_date:
+            date_conditions.append("created_at >= %s")
+            date_params.append(start_date)
+        if end_date:
+            date_conditions.append("created_at <= %s")
+            date_params.append(end_date + ' 23:59:59')
+        date_where = " WHERE " + " AND ".join(date_conditions) if date_conditions else ""
+        
+        # 基本统计
+        conditions = []
+        params = []
+        if date_conditions:
+            conditions.extend(date_conditions)
+            params.extend(date_params)
+        total_orders = RepairOrder.find_all(conditions=conditions, params=params)
+        total_count = len(total_orders)
+        
+        pending_conditions = conditions + ["status = %s"]
+        pending_params = params + ['pending']
+        pending_orders = RepairOrder.find_all(conditions=pending_conditions, params=pending_params)
+        pending_count = len(pending_orders)
+        
+        processing_conditions = conditions + ["status = %s"]
+        processing_params = params + ['processing']
+        processing_orders = RepairOrder.find_all(conditions=processing_conditions, params=processing_params)
+        processing_count = len(processing_orders)
+        
+        completed_conditions = conditions + ["status = %s"]
+        completed_params = params + ['completed']
+        completed_orders = RepairOrder.find_all(conditions=completed_conditions, params=completed_params)
+        completed_count = len(completed_orders)
+        
+        cancelled_conditions = conditions + ["status = %s"]
+        cancelled_params = params + ['cancelled']
+        cancelled_orders = RepairOrder.find_all(conditions=cancelled_conditions, params=cancelled_params)
+        cancelled_count = len(cancelled_orders)
+        
+        # 维修人员数量
+        total_technicians = Technician.find_all(conditions=["status = %s OR status = %s"], params=['active', 'online'])
+        
+        # 工单类型分布
+        type_distribution = []
+        type_sql = f"SELECT type, COUNT(*) as count FROM t_repair_order{date_where} GROUP BY type"
+        type_result = execute_sql(type_sql, date_params)
+        for item in type_result:
+            type_name = item['type']
+            # 转换类型名称为中文
+            type_name_map = {
+                'water': '水暖',
+                'electric': '电路',
+                'gas': '燃气',
+                'door': '门窗',
+                'elevator': '电梯',
+                'cleaning': '保洁',
+                'other': '其他',
+                'property': '物业',
+                'water_elec': '水电维修'
+            }
+            type_distribution.append({
+                'name': type_name_map.get(type_name, type_name),
+                'value': item['count']
+            })
+        
+        # 工单趋势
+        trend_data = []
+        if start_date and end_date:
+            trend_sql = f"""
+                SELECT DATE(created_at) as date, COUNT(*) as count 
+                FROM t_repair_order 
+                {date_where} 
+                GROUP BY DATE(created_at) 
+                ORDER BY date
+            """
+        else:
+            # 默认最近30天
+            trend_sql = """
+                SELECT DATE(created_at) as date, COUNT(*) as count 
+                FROM t_repair_order 
+                WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) 
+                GROUP BY DATE(created_at) 
+                ORDER BY date
+            """
+            date_params = []
+        trend_result = execute_sql(trend_sql, date_params)
+        for item in trend_result:
+            trend_data.append({
+                'date': item['date'].strftime('%Y-%m-%d'),
+                'value': item['count']
+            })
+        
+        # 维修人员效率（已完成的工单数量）
+        technician_efficiency = []
+        if date_conditions:
+            # 构建日期条件，不包含 WHERE 关键字，并且明确指定 created_at 列来自 ro 表
+            ro_date_conditions = [condition.replace('created_at', 'ro.created_at') for condition in date_conditions]
+            date_conditions_str = " AND ".join(ro_date_conditions)
+            efficiency_sql = f"""
+                SELECT t.name, COUNT(ro.id) as completed_count 
+                FROM t_technician t 
+                LEFT JOIN t_repair_order ro ON t.id = ro.technician_id AND ro.status = 'completed' AND {date_conditions_str} 
+                WHERE t.status = 'active' OR t.status = 'online' 
+                GROUP BY t.id, t.name 
+                ORDER BY completed_count DESC
+            """
+        else:
+            efficiency_sql = """
+                SELECT t.name, COUNT(ro.id) as completed_count 
+                FROM t_technician t 
+                LEFT JOIN t_repair_order ro ON t.id = ro.technician_id AND ro.status = 'completed' 
+                WHERE t.status = 'active' OR t.status = 'online' 
+                GROUP BY t.id, t.name 
+                ORDER BY completed_count DESC
+            """
+            date_params = []
+        efficiency_result = execute_sql(efficiency_sql, date_params)
+        for item in efficiency_result:
+            technician_efficiency.append({
+                'name': item['name'],
+                'value': item['completed_count']
+            })
+        
+        # 详细统计数据
+        detail_data = []
+        if start_date and end_date:
+            detail_sql = f"""
+                SELECT 
+                    DATE(created_at) as date, 
+                    COUNT(*) as total, 
+                    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed, 
+                    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending, 
+                    SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing 
+                FROM t_repair_order 
+                {date_where} 
+                GROUP BY DATE(created_at) 
+                ORDER BY date
+            """
+        else:
+            # 默认最近7天
+            detail_sql = """
+                SELECT 
+                    DATE(created_at) as date, 
+                    COUNT(*) as total, 
+                    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed, 
+                    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending, 
+                    SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing 
+                FROM t_repair_order 
+                WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) 
+                GROUP BY DATE(created_at) 
+                ORDER BY date
+            """
+            date_params = []
+        detail_result = execute_sql(detail_sql, date_params)
+        for item in detail_result:
+            total = item['total']
+            completed = item['completed']
+            completion_rate = round((completed / total) * 100) if total > 0 else 0
+            detail_data.append({
+                'date': item['date'].strftime('%Y-%m-%d'),
+                'total': total,
+                'completed': completed,
+                'pending': item['pending'],
+                'processing': item['processing'],
+                'avg_time': 2.5,  # 暂时使用固定值
+                'completion_rate': completion_rate
+            })
         
         return jsonify({
             'code': 0,
@@ -424,10 +591,16 @@ def get_repair_statistics():
                 },
                 'technicians': {
                     'total': len(total_technicians)
-                }
+                },
+                'type_distribution': type_distribution,
+                'trend_data': trend_data,
+                'technician_efficiency': technician_efficiency,
+                'detail_data': detail_data
             }
         })
         
     except Exception as e:
         logger.error(f"获取维修统计数据失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'code': 500, 'msg': f'获取失败: {str(e)}', 'data': None})

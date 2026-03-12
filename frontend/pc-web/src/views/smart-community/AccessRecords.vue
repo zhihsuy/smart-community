@@ -1,6 +1,10 @@
 <template>
   <div class="access-records">
     <div class="page-header">
+      <el-button type="primary" @click="$router.back()">
+        <el-icon><ArrowLeft /></el-icon>
+        返回
+      </el-button>
       <h1>📝 出入记录</h1>
       <p class="subtitle">查看所有门禁出入记录</p>
     </div>
@@ -153,7 +157,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Search } from '@element-plus/icons-vue'
+import { Search, ArrowLeft } from '@element-plus/icons-vue'
 
 const records = ref([])
 const devices = ref([])
@@ -283,6 +287,9 @@ onMounted(() => {
 
 .page-header {
   margin-bottom: 30px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
 }
 
 .page-header h1 {

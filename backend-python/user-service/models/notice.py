@@ -68,7 +68,7 @@ class Notice:
         """创建公告"""
         sql = """
             INSERT INTO t_notice (
-                title, type, content, author, author_id, 
+                title, type, content, author, author_id,
                 publish_time, expire_time, status, view_count, created_at, updated_at
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 0, NOW(), NOW())
         """

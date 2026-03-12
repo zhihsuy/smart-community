@@ -15,8 +15,8 @@
           <span class="type-tag" :class="`type-${notice.type}`">
             {{ getNoticeTypeText(notice.type) }}
           </span>
-          <span class="publish-date">{{ notice.publish_date }}</span>
-          <span class="read-count">阅读 {{ notice.read_count || 0 }}</span>
+          <span class="publish-date">{{ notice.publish_time ? new Date(notice.publish_time).toLocaleString() : '' }}</span>
+          <span class="read-count">阅读 {{ notice.view_count || 0 }}</span>
         </div>
       </div>
 
@@ -26,7 +26,7 @@
 
       <div class="notice-footer">
         <div class="publisher-info">
-          <span class="publisher">发布人：{{ notice.publisher }}</span>
+          <span class="publisher">发布人：{{ notice.author }}</span>
           <span class="department">发布部门：{{ notice.department || '物业部' }}</span>
         </div>
         <div class="actions">
@@ -42,24 +42,7 @@
       </div>
     </el-card>
 
-    <el-card class="related-notices" v-if="relatedNotices.length > 0">
-      <template #header>
-        <div class="card-header">
-          <span>📋 相关公告</span>
-        </div>
-      </template>
-      <div class="related-list">
-        <div 
-          v-for="item in relatedNotices" 
-          :key="item.id"
-          class="related-item"
-          @click="viewNotice(item.id)"
-        >
-          <h4 class="related-title">{{ item.title }}</h4>
-          <span class="related-date">{{ item.publish_date }}</span>
-        </div>
-      </div>
-    </el-card>
+
   </div>
 </template>
 
@@ -72,7 +55,6 @@ import { useRoute, useRouter } from 'vue-router'
 const route = useRoute()
 const router = useRouter()
 const notice = ref(null)
-const relatedNotices = ref([])
 
 // 加载公告详情
 const loadNoticeDetail = async () => {
@@ -80,10 +62,11 @@ const loadNoticeDetail = async () => {
   if (!noticeId) return
 
   try {
-    const response = await fetch(`/api/v1/pc/notice/notices/${noticeId}`, {
+    const response = await fetch(`/api/v1/pc/notices/${noticeId}`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     })
     const result = await response.json()
+    console.log('加载公告详情响应:', result)
     if (result.code === 0) {
       notice.value = result.data
     } else {
@@ -95,24 +78,6 @@ const loadNoticeDetail = async () => {
   }
 }
 
-// 加载相关公告
-const loadRelatedNotices = async () => {
-  const noticeId = route.params.id
-  if (!noticeId) return
-
-  try {
-    const response = await fetch(`/api/v1/pc/notice/related-notices?notice_id=${noticeId}`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-    const result = await response.json()
-    if (result.code === 0) {
-      relatedNotices.value = result.data || []
-    }
-  } catch (error) {
-    console.error('加载相关公告失败:', error)
-  }
-}
-
 const viewNotice = (id) => {
   router.push(`/notices/${id}`)
 }
@@ -120,7 +85,7 @@ const viewNotice = (id) => {
 const shareNotice = () => {
   if (!notice.value) return
   
-  const shareText = `【${notice.value.title}】\n${notice.value.content.substring(0, 100)}...\n发布时间：${notice.value.publish_date}`
+  const shareText = `【${notice.value.title}】\n${notice.value.content.substring(0, 100)}...\n发布时间：${notice.value.publish_time ? new Date(notice.value.publish_time).toLocaleString() : ''}`
   
   if (navigator.share) {
     navigator.share({
@@ -146,7 +111,6 @@ const getNoticeTypeText = (type) => {
 
 onMounted(() => {
   loadNoticeDetail()
-  loadRelatedNotices()
 })
 </script>
 
@@ -157,6 +121,9 @@ onMounted(() => {
 
 .page-header {
   margin-bottom: 30px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
 }
 
 .page-header h1 {

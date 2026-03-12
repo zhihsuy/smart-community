@@ -235,6 +235,7 @@ const userStore = useUserStore()
 const userInfo = ref({})
 const isSidebarOpen = ref(true)
 const notificationCount = ref(3) // 示例数据
+const pendingMerchantCount = ref(0) // 新增：初始化待处理商户数量
 const greenEnergyOpen = ref(false)
 const smartCommunityOpen = ref(false)
 const repairManagementOpen = ref(false)
@@ -344,13 +345,25 @@ const handleResize = () => {
 }
 
 // 监听路由变化，重新加载统计数据
-watch(() => route.path, () => {
+watch(() => route.path, (newPath, oldPath) => {
   loadStats()
-  // 关闭所有展开的菜单
-  greenEnergyOpen.value = false
-  smartCommunityOpen.value = false
-  repairManagementOpen.value = false
-  utilityManagementOpen.value = false
+  
+  // 检查新路径是否属于某个子菜单，如果是则保持该菜单展开
+  if (newPath.startsWith('/admin/utility/')) {
+    utilityManagementOpen.value = true
+  } else if (newPath.startsWith('/admin/access-control/')) {
+    smartCommunityOpen.value = true
+  } else if (newPath.startsWith('/admin/repair/')) {
+    repairManagementOpen.value = true
+  } else if (newPath.startsWith('/admin/garbage/')) {
+    greenEnergyOpen.value = true
+  } else {
+    // 如果不属于任何子菜单，则关闭所有菜单
+    greenEnergyOpen.value = false
+    smartCommunityOpen.value = false
+    repairManagementOpen.value = false
+    utilityManagementOpen.value = false
+  }
 })
 </script>
 

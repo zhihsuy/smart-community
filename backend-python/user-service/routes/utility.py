@@ -18,6 +18,7 @@ def get_meters():
         meter_type = request.args.get('type')
         status = request.args.get('status')
         user_id = request.args.get('user_id')
+        meter_no = request.args.get('meter_no')
         
         conditions = ["1=1"]
         params = []
@@ -34,6 +35,9 @@ def get_meters():
         if user_id:
             conditions.append("m.user_id = %s")
             params.append(user_id)
+        if meter_no:
+            conditions.append("m.meter_no LIKE %s")
+            params.append(f"%{meter_no}%")
         
         where_clause = " AND ".join(conditions)
         
@@ -68,8 +72,8 @@ def create_meter():
         
         sql = """
             INSERT INTO t_utility_meter 
-            (meter_no, meter_type, building_id, unit, room_number, user_id, location, install_time)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            (meter_no, meter_type, building_id, unit, room_number, user_id, location, install_time, current_reading, last_reading)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         params = (
             data.get('meter_no'),
@@ -79,7 +83,9 @@ def create_meter():
             data.get('room_number'),
             data.get('user_id'),
             data.get('location'),
-            data.get('install_time')
+            data.get('install_time'),
+            data.get('initial_reading', 0),  # 初始读数，默认为0
+            data.get('initial_reading', 0)   # 上次读数，默认为0
         )
         
         execute_sql(sql, params)
@@ -119,6 +125,21 @@ def update_meter(meter_id):
         return jsonify({'code': 500, 'msg': f'更新失败: {str(e)}', 'data': None})
 
 
+@utility_bp.route('/meters/<int:meter_id>', methods=['DELETE'])
+@admin_required
+def delete_meter(meter_id):
+    """删除表具（管理员）"""
+    try:
+        sql = "DELETE FROM t_utility_meter WHERE id = %s"
+        execute_sql(sql, (meter_id,))
+        
+        return jsonify({'code': 0, 'msg': '删除成功', 'data': None})
+        
+    except Exception as e:
+        logger.error(f"删除表具失败: {e}")
+        return jsonify({'code': 500, 'msg': f'删除失败: {str(e)}', 'data': None})
+
+
 # ==================== 用量记录 ====================
 
 @utility_bp.route('/usage', methods=['GET'])
@@ -128,6 +149,8 @@ def get_usage_records():
     try:
         meter_id = request.args.get('meter_id')
         user_id = request.args.get('user_id')
+        meter_type = request.args.get('meter_type')
+        building_id = request.args.get('building_id')
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         page = int(request.args.get('page', 1))
@@ -142,6 +165,12 @@ def get_usage_records():
         if user_id:
             conditions.append("m.user_id = %s")
             params.append(user_id)
+        if meter_type:
+            conditions.append("m.meter_type = %s")
+            params.append(meter_type)
+        if building_id:
+            conditions.append("m.building_id = %s")
+            params.append(building_id)
         if start_date:
             conditions.append("u.reading_time >= %s")
             params.append(start_date)
@@ -164,7 +193,11 @@ def get_usage_records():
         # 查询列表
         offset = (page - 1) * page_size
         sql = f"""
-            SELECT u.*, m.meter_no, m.meter_type, m.building_id, b.name as building_name
+            SELECT u.id, u.meter_id, u.reading as current_reading, u.usage_amount as usage_amount, 
+                   u.reading_time as reading_date, u.reading_type,
+                   m.meter_no as meter_code, m.meter_type, m.building_id, 
+                   m.unit, m.room_number, m.last_reading as previous_reading,
+                   b.name as building_name
             FROM t_utility_usage u
             LEFT JOIN t_utility_meter m ON u.meter_id = m.id
             LEFT JOIN t_building b ON m.building_id = b.id
@@ -176,6 +209,37 @@ def get_usage_records():
         
         records = execute_sql(sql, tuple(params), commit=False)
         
+        # 计算统计数据
+        stats_sql = f"""
+            SELECT 
+                SUM(CASE WHEN m.meter_type = 'electric' THEN u.usage_amount ELSE 0 END) as total_electric,
+                SUM(CASE WHEN m.meter_type = 'water' THEN u.usage_amount ELSE 0 END) as total_water,
+                SUM(CASE WHEN m.meter_type = 'gas' THEN u.usage_amount ELSE 0 END) as total_gas,
+                SUM(CASE WHEN u.usage_amount > 50 THEN 1 ELSE 0 END) as alert_count
+            FROM t_utility_usage u
+            LEFT JOIN t_utility_meter m ON u.meter_id = m.id
+            WHERE {where_clause}
+        """
+        stats_result = execute_sql(stats_sql, tuple(params[:len(params)-2]), commit=False)
+        stats = stats_result[0] if stats_result else {}
+        
+        # 计算趋势数据（用电量和用水量）
+        trend_sql = f"""
+            SELECT 
+                DATE(u.reading_time) as date,
+                SUM(CASE WHEN m.meter_type = 'electric' THEN u.usage_amount ELSE 0 END) as electric_value,
+                SUM(CASE WHEN m.meter_type = 'water' THEN u.usage_amount ELSE 0 END) as water_value
+            FROM t_utility_usage u
+            LEFT JOIN t_utility_meter m ON u.meter_id = m.id
+            WHERE {where_clause}
+            GROUP BY DATE(u.reading_time)
+            ORDER BY date ASC
+        """
+        trend_result = execute_sql(trend_sql, tuple(params[:len(params)-2]), commit=False)
+        
+        electric_trend = [{'date': row['date'].strftime('%Y-%m-%d'), 'value': float(row['electric_value'])} for row in trend_result]
+        water_trend = [{'date': row['date'].strftime('%Y-%m-%d'), 'value': float(row['water_value'])} for row in trend_result]
+        
         return jsonify({
             'code': 0,
             'msg': 'success',
@@ -183,7 +247,13 @@ def get_usage_records():
                 'list': records,
                 'total': total,
                 'page': page,
-                'pageSize': page_size
+                'pageSize': page_size,
+                'total_electric': float(stats.get('total_electric', 0)),
+                'total_water': float(stats.get('total_water', 0)),
+                'total_gas': float(stats.get('total_gas', 0)),
+                'alert_count': int(stats.get('alert_count', 0)),
+                'electric_trend': electric_trend,
+                'water_trend': water_trend
             }
         })
         

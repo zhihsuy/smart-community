@@ -1,38 +1,17 @@
 <template>
   <div class="notices-page">
     <div class="page-header">
-      <h1>📢 公告通知</h1>
-      <p class="subtitle">社区公告、活动通知、物业通知</p>
+      <el-button type="primary" @click="$router.back()">
+        <el-icon><ArrowLeft /></el-icon>
+        返回
+      </el-button>
+      <div>
+        <h1>📢 公告通知</h1>
+        <p class="subtitle">社区公告、活动通知、物业通知</p>
+      </div>
     </div>
 
-    <!-- 搜索筛选 -->
-    <el-card class="search-card">
-      <el-form :inline="true" :model="searchForm" class="search-form">
-        <el-form-item label="类型">
-          <el-select v-model="searchForm.type" placeholder="选择类型">
-            <el-option label="全部" value="" />
-            <el-option label="社区公告" value="community" />
-            <el-option label="活动通知" value="activity" />
-            <el-option label="物业通知" value="property" />
-            <el-option label="紧急通知" value="urgent" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="搜索">
-          <el-input
-            v-model="searchForm.keyword"
-            placeholder="标题或内容"
-            clearable
-            style="width: 300px"
-          >
-            <template #append>
-              <el-button @click="loadNotices">
-                <el-icon><Search /></el-icon>
-              </el-button>
-            </template>
-          </el-input>
-        </el-form-item>
-      </el-form>
-    </el-card>
+
 
     <!-- 公告列表 -->
     <el-card class="notices-card">
@@ -62,12 +41,14 @@
               {{ notice.title }}
               <span v-if="notice.is_unread" class="unread-dot">●</span>
             </h3>
-            <span class="notice-date">{{ notice.publish_date }}</span>
+            <span class="notice-date">{{ notice.publish_time ? new Date(notice.publish_time).toLocaleString() : '' }}</span>
           </div>
           <div class="notice-content">{{ notice.content }}</div>
           <div class="notice-footer">
-            <span class="publisher">{{ notice.publisher }}</span>
-            <span class="read-count">阅读 {{ notice.read_count || 0 }}</span>
+            <span class="publisher">{{ notice.author }}</span>
+            <div class="notice-actions">
+              <span class="read-count">阅读 {{ notice.view_count || 0 }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -110,18 +91,22 @@
             <span class="type-tag" :class="`type-${notice.type}`">
               {{ getNoticeTypeText(notice.type) }}
             </span>
-            <span class="pinned-date">{{ notice.publish_date }}</span>
+            <div class="pinned-actions">
+              <span class="pinned-date">{{ notice.publish_time ? new Date(notice.publish_time).toLocaleString() : '' }}</span>
+            </div>
           </div>
         </div>
       </div>
     </el-card>
+
+
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Search } from '@element-plus/icons-vue'
+import { ArrowLeft } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -133,10 +118,6 @@ const pagination = ref({
   pageSize: 10,
   total: 0
 })
-const searchForm = ref({
-  type: '',
-  keyword: ''
-})
 
 // 加载公告
 const loadNotices = async () => {
@@ -144,17 +125,12 @@ const loadNotices = async () => {
     const params = new URLSearchParams()
     params.append('page', pagination.value.currentPage)
     params.append('pageSize', pagination.value.pageSize)
-    if (searchForm.value.type) {
-      params.append('type', searchForm.value.type)
-    }
-    if (searchForm.value.keyword) {
-      params.append('keyword', searchForm.value.keyword)
-    }
 
-    const response = await fetch(`/api/v1/pc/notice/notices?${params.toString()}`, {
+    const response = await fetch(`/api/v1/pc/notices?${params.toString()}`, {
       headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
     })
     const result = await response.json()
+    console.log('加载公告响应:', result)
     if (result.code === 0) {
       notices.value = result.data?.list || []
       pinnedNotices.value = result.data?.pinned || []
@@ -203,6 +179,9 @@ onMounted(() => {
 
 .page-header {
   margin-bottom: 30px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
 }
 
 .page-header h1 {
@@ -216,17 +195,10 @@ onMounted(() => {
   margin: 0;
 }
 
-.search-card,
 .notices-card,
 .pinned-card {
   border-radius: 8px;
   margin-bottom: 20px;
-}
-
-.search-form {
-  display: flex;
-  align-items: center;
-  gap: 15px;
 }
 
 .card-header {
@@ -317,6 +289,18 @@ onMounted(() => {
   align-items: center;
   font-size: 14px;
   color: #909399;
+}
+
+.notice-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pinned-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .pinned-card {
